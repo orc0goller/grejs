@@ -1,0 +1,114 @@
+import time
+import pyautogui
+import win32gui, win32api, win32con
+import os
+import sys
+os.getcwd()
+sys.path.append(os.getcwd())
+import listen_to_fish
+
+
+"""
+    Settings:
+    1. Enable "Stereo Mix"
+    2. Start wow in windowed mode.
+    3. Maximize wow.
+    4. Put skill "Cast fishing" on 2 in primary ActionBar
+"""
+
+
+def left_click(sleep_time=0.1, sleep_mode=False):
+    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+    if sleep_mode: time.sleep(sleep_time)
+    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+
+
+def right_click(sleep_time=0.1, sleep_mode=False):
+    win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0)
+    if sleep_mode: time.sleep(sleep_time)
+    win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0)
+
+
+def set_cursor_pos(x, y):
+    win32api.SetCursorPos((x, y))
+
+
+class FishingBot:
+
+
+    def __init__(self):
+        # Sets variables for stats
+        self.fishes_catched = 0
+        self.numbers_of_fishing_cast = 0
+        self.time_started_fishing = time.time()
+        # Asks user for how many times the bot should fish and for how long
+        self.times_fishing = int(input("How many times do you want to fish? "))
+        self.clock_fishing = float(input("How many seconds do you want to fish? "))
+        self.clock_fishing += time.time()
+
+        # opens world of warcraft to foreground
+        time.sleep(0.2)
+        handle = win32gui.FindWindow(0, "World of Warcraft")
+        win32gui.SetForegroundWindow(handle)
+        time.sleep(0.2)
+        #######################################
+
+    def cast_fishing(self):
+        print("Casting fishing...")
+        pyautogui.typewrite('2')
+        self.numbers_of_fishing_cast += 1
+
+    def search_for_fish_bobber(self):
+        # monitor_size equals to a tuple that's: (screen width, screen height)
+        monitor_size = pyautogui.size()
+        search_window_x = (monitor_size[0] // 4), (monitor_size[0] - monitor_size[0] // 4)
+        search_window_y = (monitor_size[1] // 4), (monitor_size[1] - monitor_size[1] // 4)
+        #####################################################################
+
+        # Saves the normal wow cursor "style" in "normal_wow_cursor"
+        normal_wow_cursor = win32gui.GetCursorInfo()[1]
+        for y in range(search_window_y[0], search_window_y[1]+1, 55):
+            for x in range(search_window_x[0], search_window_x[1]+1, 65):
+                set_cursor_pos(x, y)
+                time.sleep(0.1)
+                # Saves current wow cursor to compare it to the normal_wow_cursor, if different --> we found bobber.
+                current_wow_cursor = win32gui.GetCursorInfo()[1]
+                if normal_wow_cursor != current_wow_cursor:
+                    # Returns True if cursor changes value, (win32gui.GetCursorInfo()[1])
+                    return True
+
+
+    def loot_fish(self):
+        self.fishes_catched += 1
+        pyautogui.click(button="right")
+        time.sleep(0.3)
+        pyautogui.click(60, 300, button="right")
+        time.sleep(0.2)
+        pyautogui.click(60, 350, button="right")
+
+
+def main():
+    #print(time.time())
+    fishing_bot = FishingBot()
+    while fishing_bot.clock_fishing >= time.time() and fishing_bot.times_fishing > 0:
+        fishing_bot.times_fishing -= 1
+        fishing_bot.cast_fishing()
+        time.sleep(0.5)
+        if fishing_bot.search_for_fish_bobber():
+            if listen_to_fish.listen_to_bobber():
+                fishing_bot.loot_fish()
+        
+                
+    # Calculations for the stats
+    time_spent_fishing = int(((time.time()-fishing_bot.time_started_fishing)+0.5)//1)
+    average_CatchPerMin = fishing_bot.fishes_catched/(time_spent_fishing/60)
+
+    # Prints the stats
+    print("Numbers of catches:", fishing_bot.fishes_catched)
+    print("Numbers of times fished cast:", fishing_bot.numbers_of_fishing_cast)
+    print("Time spent fishing in seconds:", time_spent_fishing)
+    print("Average catch per minute:", str(average_CatchPerMin)[:5])
+
+
+if __name__ == '__main__':
+    main()
