@@ -1,0 +1,76 @@
+import pyaudio
+import struct
+import math
+import time
+
+
+
+def list_devices(name="Stereo Mix"):
+    # List all audio input devices
+    p = pyaudio.PyAudio()
+    i = 0
+    n = p.get_device_count()
+    while i < n:
+        dev = p.get_device_info_by_index(i)
+        if dev['maxInputChannels'] > 0:
+            #print(str(i)+'. '+dev['name'])
+            if name in dev['name']:
+                stereo_mix_index = i
+        i += 1
+    p.terminate()
+    return stereo_mix_index
+
+
+DEVICE = list_devices("Stereo Mix")
+TAP_THRESHOLD = 0.01
+FORMAT = pyaudio.paInt16
+SHORT_NORMALIZE = (1.0/32768.0)
+CHANNELS = 1
+RATE = 44100
+INPUT_BLOCK_TIME = 0.01
+INPUT_FRAMES_PER_BLOCK = int(RATE*INPUT_BLOCK_TIME)
+
+
+def get_rms(block):
+
+    """Get root mean square as a measure of loudness"""
+
+    global SHORT_NORMALIZE
+
+    count = len(block)/2
+    format = "%dh" % (count)
+    shorts = struct.unpack(format, block)
+    sum_squares = 0.0
+    for sample in shorts:
+        n = sample * SHORT_NORMALIZE
+        sum_squares += n*n
+    return math.sqrt(sum_squares / count)
+
+
+def listen_to_bobber():
+    print("listening to bobber")
+    # Open the mic
+    stream = pyaudio.PyAudio().open(format=FORMAT,
+                                    channels=CHANNELS,
+                                    rate=RATE,
+                                    input=True,
+                                    input_device_index=DEVICE,
+                                    frames_per_buffer=INPUT_FRAMES_PER_BLOCK)
+
+    start_time = time.time()
+    time_took = start_time
+
+    while start_time + 25 > time_took:
+        try:
+            turd = stream.read(INPUT_FRAMES_PER_BLOCK)
+        except IOError:
+            print(IOError)
+        loudness = get_rms(turd)
+        if loudness > TAP_THRESHOLD:
+            print("loudness", loudness)
+            return True
+        time_took = time.time()
+    # Close the mic
+    stream.close()
+    if __name__ == '__main__':
+        listen_to_bobber()
